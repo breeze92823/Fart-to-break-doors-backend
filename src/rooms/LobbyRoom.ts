@@ -11,6 +11,8 @@ import {
   FOOD_ID_PATTERN,
   FOOD_MAX_KINDS,
   FOOD_MAX_COUNT,
+  FART_MAX_KINDS,
+  CROWN_MAX,
   FART_MIN_INTERVAL_MS,
   BELLY_SIZE_MIN,
   BELLY_SIZE_MAX,
@@ -80,6 +82,16 @@ export function sanitizeFoods(raw: unknown): Record<string, number> {
   return out;
 }
 
+export function sanitizeIds(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const out = new Set<string>();
+  for (const id of raw) {
+    if (out.size >= FART_MAX_KINDS) break;
+    if (typeof id === "string" && FOOD_ID_PATTERN.test(id)) out.add(id);
+  }
+  return [...out];
+}
+
 // Same client-trusted model as every other message here -- no server-side
 // game-logic validation. What IS enforced: shape and bounds, so a malformed
 // payload can never corrupt this player's own Mongo document. A forged number
@@ -95,6 +107,10 @@ export function sanitizeProgress(raw: unknown): Partial<PlayerDoc> | null {
   if (finite(src.farts)) out.farts = clampInt(src.farts, COUNTER_MAX);
   if (finite(src.wins)) out.wins = clampInt(src.wins, COUNTER_MAX);
   if (src.trainingFoods !== undefined) out.trainingFoods = sanitizeFoods(src.trainingFoods);
+  if (src.ownedFarts !== undefined) out.ownedFarts = sanitizeIds(src.ownedFarts);
+  if (typeof src.equippedFood === "string" && FOOD_ID_PATTERN.test(src.equippedFood)) out.equippedFood = src.equippedFood;
+  if (typeof src.equippedFart === "string" && FOOD_ID_PATTERN.test(src.equippedFart)) out.equippedFart = src.equippedFart;
+  if (finite(src.crowns)) out.crowns = clampInt(src.crowns, CROWN_MAX);
   // The client only ever advances it, so take what is sent, clamped.
   if (finite(src.tutorialStep)) out.tutorialStep = clampInt(src.tutorialStep, TUTORIAL_DONE_STEP);
   return out;
@@ -334,6 +350,10 @@ export class LobbyRoom extends Room<{ state: LobbyState }> {
         wins: p.wins,
         playTime: p.playTime,
         tutorialStep: resolveTutorialStep(doc),
+        ownedFarts: sanitizeIds(doc.ownedFarts),
+        equippedFood: doc.equippedFood ?? "",
+        equippedFart: doc.equippedFart ?? "",
+        crowns: doc.crowns ?? 0,
       });
     } catch (err) {
       console.warn("[LobbyRoom] loadProgress failed", err);

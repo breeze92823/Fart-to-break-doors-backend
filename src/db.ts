@@ -26,6 +26,11 @@ export interface PlayerDoc {
   // (LobbyRoom.ts resolveTutorialStep), so a new player who idled isn't
   // mistaken for a finished one.
   tutorialStep?: number;
+  // Client-owned extras; older docs lack them.
+  ownedFarts?: string[]; // fart type ids bought
+  equippedFood?: string;
+  equippedFart?: string;
+  crowns?: number;
   version: number;
   updatedAt: Date;
 }

@@ -23,6 +23,11 @@ export const FOOD_ID_PATTERN = /^[a-z0-9_-]{1,32}$/;
 export const FOOD_MAX_KINDS = 64;
 export const FOOD_MAX_COUNT = 1_000_000_000;
 
+// Owned fart ids (saved as a string[]) and Crowns; ids are shape-checked with
+// FOOD_ID_PATTERN like foods.
+export const FART_MAX_KINDS = 64;
+export const CROWN_MAX = 1_000_000_000_000;
+
 // Client onboarding progress: the client's data/tutorial.js TUTORIAL_DONE_STEP
 // (steps 0..8, 9 = finished). Keep in step by comment.
 export const TUTORIAL_DONE_STEP = 9;

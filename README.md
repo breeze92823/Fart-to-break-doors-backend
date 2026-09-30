@@ -46,7 +46,7 @@ isn't persisted.
 | `fart` | `{}` — bumps `PlayerState.fartSeq`; others replay the hunch pose + gas. Rate-limited to one per 300 ms | on each fart |
 | `setAvatar` | `{ avatar }` (opaque JSON string, ≤4 KB) | on connect + on change |
 | `stats` | `{ fartPower, rebirths, farts, wins, bellySize }` (all optional; `bellySize` clamped 0.5–3) | debounced on change |
-| `saveProgress` | `{ cash, fartPower, rebirths, trainingFoods, farts, wins }` (all optional) | debounced; no-op for a guest |
+| `saveProgress` | `{ cash, fartPower, rebirths, trainingFoods, farts, wins, tutorialStep, ownedFarts, equippedFood, equippedFart, crowns }` (all optional; `ownedFarts` is an id array) | debounced; no-op for a guest |
 | `identify` | `{ username, userId }` | when sign-in state changes after join |
 
 `trainingFoods` is `{ [foodId]: count }`. The food list is still TBD on the
@@ -58,7 +58,7 @@ once the foods exist.
 
 | Message | Payload | When |
 |---|---|---|
-| `progress` | saved doc: `{ cash, fartPower, rebirths, trainingFoods, farts, wins, playTime }` | after a signed-in join/identify, if a saved doc exists |
+| `progress` | saved doc: `{ cash, fartPower, rebirths, trainingFoods, farts, wins, playTime, tutorialStep, ownedFarts, equippedFood, equippedFart, crowns }` | after a signed-in join/identify, if a saved doc exists |
 | `noProgress` | `{}` | after a signed-in join/identify with no saved doc (new account) |
 | `leaderboard` | `{ rebirths, fartPower, farts, wins, playTime }`, each `Row[]` with `Row = { id, name, value }` | every 15s and on roster changes; live roster merged with all-time Mongo top scorers |
 
