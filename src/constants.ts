@@ -25,3 +25,13 @@ export const FOOD_MAX_COUNT = 1_000_000_000;
 
 // Starting value for Fart Power (client PROGRESSION.md: fartPower starts at 1).
 export const FART_POWER_START = 1;
+
+// Belly/waist size multiplier bounds; keep in step with the client's
+// BELLY_SIZE in systems/belly.js.
+export const BELLY_SIZE_MIN = 0.5;
+export const BELLY_SIZE_MAX = 3;
+
+// Minimum gap between two accepted `fart` messages from one connection. The
+// client's own retrigger is 0.4 s (systems/fart.js), so this only stops a
+// modified client from flooding every other client with gas clouds.
+export const FART_MIN_INTERVAL_MS = 300;

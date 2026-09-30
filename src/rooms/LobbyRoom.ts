@@ -11,6 +11,9 @@ import {
   FOOD_ID_PATTERN,
   FOOD_MAX_KINDS,
   FOOD_MAX_COUNT,
+  FART_MIN_INTERVAL_MS,
+  BELLY_SIZE_MIN,
+  BELLY_SIZE_MAX,
 } from "../constants.js";
 import { getPlayers, type PlayerDoc } from "../db.js";
 
@@ -112,6 +115,9 @@ export class LobbyRoom extends Room<{ state: LobbyState }> {
   // been counted. Also not synced.
   private playTimeMark = new Map<string, number>();
 
+  // sessionId -> epoch ms of the last accepted `fart`, for the rate limit.
+  private lastFartAt = new Map<string, number>();
+
   messages = {
     // Throttled client-side -- not sent every physics frame.
     move: (client: Client, msg: any) => {
@@ -122,6 +128,19 @@ export class LobbyRoom extends Room<{ state: LobbyState }> {
       if (finite(msg?.z)) p.z = msg.z;
       if (finite(msg?.yaw)) p.yaw = msg.yaw;
       if (finite(msg?.moveBlend)) p.moveBlend = msg.moveBlend;
+      if (typeof msg?.grounded === "boolean") p.grounded = msg.grounded;
+      if (typeof msg?.seated === "boolean") p.seated = msg.seated;
+    },
+    // The player just farted. Only a counter is stored; every client (the
+    // sender included, ignoring its own row) replays the pose and gas from the
+    // bump. Rate-limited so a forged client can't spam clouds.
+    fart: (client: Client) => {
+      const p = this.state.players.get(client.sessionId);
+      if (!p) return;
+      const now = Date.now();
+      if (now - (this.lastFartAt.get(client.sessionId) ?? 0) < FART_MIN_INTERVAL_MS) return;
+      this.lastFartAt.set(client.sessionId, now);
+      p.fartSeq += 1;
     },
     // Bloxity avatar JSON; sent on connect and whenever the portal reports a change.
     setAvatar: (client: Client, msg: { avatar?: string }) => {
@@ -131,13 +150,14 @@ export class LobbyRoom extends Room<{ state: LobbyState }> {
       if (avatar) p.avatar = avatar;
     },
     // Live stats for the in-world leaderboards, sent debounced on change.
-    stats: (client: Client, msg: { fartPower?: number; rebirths?: number; farts?: number; wins?: number }) => {
+    stats: (client: Client, msg: { fartPower?: number; rebirths?: number; farts?: number; wins?: number; bellySize?: number }) => {
       const p = this.state.players.get(client.sessionId);
       if (!p) return;
       if (finite(msg?.fartPower)) p.fartPower = clampNum(msg.fartPower, FART_POWER_MAX);
       if (finite(msg?.rebirths)) p.rebirths = clampInt(msg.rebirths, REBIRTH_MAX);
       if (finite(msg?.farts)) p.farts = clampInt(msg.farts, COUNTER_MAX);
       if (finite(msg?.wins)) p.wins = clampInt(msg.wins, COUNTER_MAX);
+      if (finite(msg?.bellySize)) p.bellySize = Math.min(BELLY_SIZE_MAX, Math.max(BELLY_SIZE_MIN, msg.bellySize));
     },
     // Debounced push of the durable half of the client store. A guest has no
     // userId and this no-ops. Upserts, so a first save creates the document.
@@ -220,6 +240,7 @@ export class LobbyRoom extends Room<{ state: LobbyState }> {
     this.playTimeMark.delete(sessionId);
     this.state.players.delete(sessionId);
     this.userIds.delete(sessionId);
+    this.lastFartAt.delete(sessionId);
   }
 
   onJoin(client: Client, options?: { username?: string; avatar?: string; userId?: string }) {

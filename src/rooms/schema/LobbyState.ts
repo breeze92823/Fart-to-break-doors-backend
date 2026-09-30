@@ -10,6 +10,17 @@ export const PlayerState = schema(
     // 0..1 eased gait factor (client systems/avatarAnim.js) -- purely cosmetic,
     // drives the remote walk-cycle blend.
     moveBlend: t.number().default(0),
+    // Pose flags the remote walk-cycle needs (client systems/avatarAnim.js):
+    // airborne tucks the limbs, seated sits on the bench (the model also sinks).
+    grounded: t.boolean().default(true),
+    seated: t.boolean().default(false),
+    // Bumped once per fart (see LobbyRoom.ts `fart`). Every client plays the
+    // hunch pose + gas cloud locally when this changes, so only a counter is
+    // synced, not per-frame pose or particles. The 180 turn rides on `yaw`.
+    // Belly/waist size multiplier (client systems/belly.js), cosmetic; every
+    // client scales that player's belly to it. Clamped to BELLY_SIZE_MIN..MAX.
+    bellySize: t.number().default(1),
+    fartSeq: t.number().default(0),
     // The player's Bloxity avatar as an opaque JSON string, stored and relayed
     // as-is (length-capped, never parsed here). See LobbyRoom.ts AVATAR_MAX_LEN.
     avatar: t.string().default(""),

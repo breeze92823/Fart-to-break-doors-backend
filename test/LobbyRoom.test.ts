@@ -113,6 +113,34 @@ describe("LobbyRoom", () => {
     assert.strictEqual(s2.wins, 0);
   });
 
+  it("relays pose flags and fart events, rate-limited", async () => {
+    const room = await colyseus.createRoom<LobbyState>("lobby", {});
+    const client1 = await colyseus.connectTo(room);
+    const client2 = await colyseus.connectTo(room);
+
+    client1.send("move", { x: 0, y: 0, z: 0, yaw: 0, moveBlend: 0, grounded: false, seated: true });
+    await room.waitForNextPatch();
+    await sleep(100);
+    const p = client2.state.players.get(client1.sessionId);
+    assert.strictEqual(p.grounded, false);
+    assert.strictEqual(p.seated, true);
+
+    assert.strictEqual(p.fartSeq, 0);
+    client1.send("stats", { bellySize: 9 });
+    client1.send("fart", {});
+    client1.send("fart", {}); // inside FART_MIN_INTERVAL_MS: dropped
+    await room.waitForNextPatch();
+    await sleep(100);
+    assert.strictEqual(client2.state.players.get(client1.sessionId).fartSeq, 1);
+    assert.strictEqual(client2.state.players.get(client1.sessionId).bellySize, 3); // clamped
+
+    await sleep(350);
+    client1.send("fart", {});
+    await room.waitForNextPatch();
+    await sleep(100);
+    assert.strictEqual(client2.state.players.get(client1.sessionId).fartSeq, 2);
+  });
+
   it("degrades to no-op persistence when Mongo is unreachable", async () => {
     const room = await colyseus.createRoom<LobbyState>("lobby", {});
     const client1 = await colyseus.connectTo(room, { userId: "bloxity-user-1" });

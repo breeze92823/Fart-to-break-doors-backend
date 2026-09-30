@@ -42,9 +42,10 @@ isn't persisted.
 
 | Message | Payload | Cadence |
 |---|---|---|
-| `move` | `{ x, y, z, yaw, moveBlend }` | throttled |
+| `move` | `{ x, y, z, yaw, moveBlend, grounded, seated }` (last two optional booleans) | throttled |
+| `fart` | `{}` — bumps `PlayerState.fartSeq`; others replay the hunch pose + gas. Rate-limited to one per 300 ms | on each fart |
 | `setAvatar` | `{ avatar }` (opaque JSON string, ≤4 KB) | on connect + on change |
-| `stats` | `{ fartPower, rebirths, farts, wins }` (all optional) | debounced on change |
+| `stats` | `{ fartPower, rebirths, farts, wins, bellySize }` (all optional; `bellySize` clamped 0.5–3) | debounced on change |
 | `saveProgress` | `{ cash, fartPower, rebirths, trainingFoods, farts, wins }` (all optional) | debounced; no-op for a guest |
 | `identify` | `{ username, userId }` | when sign-in state changes after join |
 
