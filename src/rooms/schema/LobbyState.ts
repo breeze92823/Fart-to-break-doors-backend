@@ -21,6 +21,10 @@ export const PlayerState = schema(
     // client scales that player's belly to it. Clamped to BELLY_SIZE_MIN..MAX.
     bellySize: t.number().default(1),
     fartSeq: t.number().default(0),
+    // Id of the player's equipped Training Food (client data/foods.js), shown
+    // on the table in front of them while `seated`. Shape-checked against
+    // FOOD_ID_PATTERN, "" until the first `stats`.
+    equippedFood: t.string().default(""),
     // The player's Bloxity avatar as an opaque JSON string, stored and relayed
     // as-is (length-capped, never parsed here). See LobbyRoom.ts AVATAR_MAX_LEN.
     avatar: t.string().default(""),

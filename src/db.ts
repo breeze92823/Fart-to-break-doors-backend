@@ -21,6 +21,11 @@ export interface PlayerDoc {
   // clock (LobbyRoom.ts flushPlaytime) -- never client-reported, so it can't
   // be forged via saveProgress. Older docs may lack it.
   playTime?: number;
+  // Client onboarding step (constants.ts TUTORIAL_DONE_STEP = finished). Docs
+  // created by the playtime flush before any save lack it -- read as 0
+  // (LobbyRoom.ts resolveTutorialStep), so a new player who idled isn't
+  // mistaken for a finished one.
+  tutorialStep?: number;
   version: number;
   updatedAt: Date;
 }

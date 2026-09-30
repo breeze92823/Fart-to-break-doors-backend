@@ -14,6 +14,7 @@ import {
   FART_MIN_INTERVAL_MS,
   BELLY_SIZE_MIN,
   BELLY_SIZE_MAX,
+  TUTORIAL_DONE_STEP,
 } from "../constants.js";
 import { getPlayers, type PlayerDoc } from "../db.js";
 
@@ -94,7 +95,17 @@ export function sanitizeProgress(raw: unknown): Partial<PlayerDoc> | null {
   if (finite(src.farts)) out.farts = clampInt(src.farts, COUNTER_MAX);
   if (finite(src.wins)) out.wins = clampInt(src.wins, COUNTER_MAX);
   if (src.trainingFoods !== undefined) out.trainingFoods = sanitizeFoods(src.trainingFoods);
+  // The client only ever advances it, so take what is sent, clamped.
+  if (finite(src.tutorialStep)) out.tutorialStep = clampInt(src.tutorialStep, TUTORIAL_DONE_STEP);
   return out;
+}
+
+// What loadProgress() sends down as tutorialStep. A doc without the field (made
+// by the playtime flush, or an older save) reads as step 0; a returning player
+// with a rebirth has clearly moved past the tutorial. Exported for tests.
+export function resolveTutorialStep(doc: PlayerDoc): number {
+  if (typeof doc.tutorialStep === "number") return clampInt(doc.tutorialStep, TUTORIAL_DONE_STEP);
+  return (doc.rebirths ?? 0) >= 1 ? TUTORIAL_DONE_STEP : 0;
 }
 
 /**
@@ -150,7 +161,7 @@ export class LobbyRoom extends Room<{ state: LobbyState }> {
       if (avatar) p.avatar = avatar;
     },
     // Live stats for the in-world leaderboards, sent debounced on change.
-    stats: (client: Client, msg: { fartPower?: number; rebirths?: number; farts?: number; wins?: number; bellySize?: number }) => {
+    stats: (client: Client, msg: { fartPower?: number; rebirths?: number; farts?: number; wins?: number; bellySize?: number; equippedFood?: string }) => {
       const p = this.state.players.get(client.sessionId);
       if (!p) return;
       if (finite(msg?.fartPower)) p.fartPower = clampNum(msg.fartPower, FART_POWER_MAX);
@@ -158,6 +169,7 @@ export class LobbyRoom extends Room<{ state: LobbyState }> {
       if (finite(msg?.farts)) p.farts = clampInt(msg.farts, COUNTER_MAX);
       if (finite(msg?.wins)) p.wins = clampInt(msg.wins, COUNTER_MAX);
       if (finite(msg?.bellySize)) p.bellySize = Math.min(BELLY_SIZE_MAX, Math.max(BELLY_SIZE_MIN, msg.bellySize));
+      if (typeof msg?.equippedFood === "string" && FOOD_ID_PATTERN.test(msg.equippedFood)) p.equippedFood = msg.equippedFood;
     },
     // Debounced push of the durable half of the client store. A guest has no
     // userId and this no-ops. Upserts, so a first save creates the document.
@@ -321,6 +333,7 @@ export class LobbyRoom extends Room<{ state: LobbyState }> {
         farts: p.farts,
         wins: p.wins,
         playTime: p.playTime,
+        tutorialStep: resolveTutorialStep(doc),
       });
     } catch (err) {
       console.warn("[LobbyRoom] loadProgress failed", err);

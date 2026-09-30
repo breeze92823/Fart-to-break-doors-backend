@@ -4,7 +4,7 @@ import { ColyseusTestServer, boot } from "@colyseus/testing";
 
 import appConfig from "../src/app.config.js";
 import { LobbyState } from "../src/rooms/schema/LobbyState.js";
-import { sanitizeProgress, sanitizeFoods, type LobbyRoom } from "../src/rooms/LobbyRoom.js";
+import { sanitizeProgress, sanitizeFoods, resolveTutorialStep, type LobbyRoom } from "../src/rooms/LobbyRoom.js";
 import { __setPlayersForTest, type PlayerDoc } from "../src/db.js";
 
 // Hand-rolled fake `players` collection implementing only the subset
@@ -320,6 +320,51 @@ describe("LobbyRoom", () => {
       assert.strictEqual(out.farts, 12);
       assert.strictEqual(out.wins, undefined);
       assert.strictEqual(out.trainingFoods, undefined);
+    });
+  });
+
+  describe("tutorialStep", () => {
+    it("clamps a saved step to 0..9 and ignores junk", () => {
+      assert.strictEqual(sanitizeProgress({ tutorialStep: 3.9 })!.tutorialStep, 3);
+      assert.strictEqual(sanitizeProgress({ tutorialStep: 99 })!.tutorialStep, 9);
+      assert.strictEqual(sanitizeProgress({ tutorialStep: -2 })!.tutorialStep, 0);
+      assert.strictEqual(sanitizeProgress({ tutorialStep: "4" })!.tutorialStep, undefined);
+    });
+
+    it("resolves a doc without a step as new, unless it has rebirthed", () => {
+      assert.strictEqual(resolveTutorialStep(baseDoc()), 0);
+      assert.strictEqual(resolveTutorialStep(baseDoc({ tutorialStep: 4 })), 4);
+      assert.strictEqual(resolveTutorialStep(baseDoc({ rebirths: 1 })), 9);
+    });
+
+    it("persists it via saveProgress and sends it (or noProgress) on join", async () => {
+      const fake = fakePlayersCollection();
+      __setPlayersForTest(fake);
+      const room = await colyseus.createRoom<LobbyState>("lobby", {});
+      const r = room as any;
+      const sent: any[] = [];
+      const origLoad = r.loadProgress.bind(r);
+      r.loadProgress = (c: any, ...rest: any[]) => {
+        const origSend = c.send.bind(c);
+        c.send = (type: string, msg: any) => {
+          sent.push([type, msg]);
+          origSend(type, msg);
+        };
+        return origLoad(c, ...rest);
+      };
+      const first = await colyseus.connectTo(room, { userId: "tut1" });
+      await sleep(100);
+      assert.deepStrictEqual(sent[0], ["noProgress", {}]); // brand-new account
+
+      first.send("saveProgress", { tutorialStep: 4 });
+      await sleep(80);
+      assert.strictEqual(fake.docs.get("tut1")!.tutorialStep, 4);
+
+      sent.length = 0;
+      await colyseus.connectTo(room, { userId: "tut1" }); // evicts `first`, reloads
+      await sleep(100);
+      const progress = sent.find(([t]) => t === "progress");
+      assert.strictEqual(progress[1].tutorialStep, 4);
     });
   });
 
